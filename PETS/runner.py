@@ -318,8 +318,8 @@ if(False):
 # === Testing Resulting Configuration ===
 # =============================
 if(True):
-    trainsize = 20000
-    nteststeps = 200
+    trainsize = 20
+    nteststeps = 2
     nepisodes = 3
 
     total_rewards = []
@@ -361,4 +361,4 @@ if(True):
     ax2.legend()
     fig.tight_layout(w_pad=3)
     plt.show()
-    fig.savefig(f'results/rewards_optimized_20000train')
+    fig.savefig(f'results/rewards_optimized_test')
