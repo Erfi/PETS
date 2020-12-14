@@ -7,8 +7,8 @@ import os
 import numpy as np
 from scipy.io import savemat
 
-from DotmapUtils import get_required_argument
-from optimizers import CEMOptimizer
+from .optimizers import CEMOptimizer
+from .DotmapUtils import get_required_argument
 
 from tqdm import trange
 

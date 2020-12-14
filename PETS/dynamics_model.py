@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
-from DotmapUtils import get_required_argument
-from config.utils import swish, get_affine_params
+from .DotmapUtils import get_required_argument
+from .config.utils import swish, get_affine_params
 
 TORCH_DEVICE = torch.device(
     'cuda') if torch.cuda.is_available() else torch.device('cpu')
