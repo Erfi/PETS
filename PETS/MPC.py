@@ -265,6 +265,21 @@ class MPC(Controller):
             update_fn()
 
     def act(self, obs, get_pred_cost=False):
+        """
+        obs: tensor or ndarray of observations
+        """
+        if isinstance(obs, torch.Tensor):
+            obs = obs.cpu().detach().numpy()
+        # single obs (e.g. (4,) for testing)
+        if obs.ndim == 1:
+            return self._act(obs)
+        # batch obs (e.g. (n, 4) for training)
+        actions = []
+        for item in obs:
+            actions.append(self._act(item.flatten()))
+        return np.array(actions)
+
+    def _act(self, obs, get_pred_cost=False):
         """Returns the action that this controller would take at time t given observation obs.
 
         Arguments:
