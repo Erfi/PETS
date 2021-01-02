@@ -14,8 +14,10 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def __init__(self):
         utils.EzPickle.__init__(self)
+        self.fail_pos_steps = 0
+        self.max_fail_pos_steps = 200
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, '%s/assets/cartpole.xml' % dir_path, 2)
+        mujoco_env.MujocoEnv.__init__(self, "%s/assets/cartpole.xml" % dir_path, 2)
 
     def step(self, a):
         self.do_simulation(a, self.frame_skip)
@@ -26,14 +28,24 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, CartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
         )
         reward -= 0.01 * np.sum(np.square(a))
+        if self._is_fail_pos(ob):
+            self.fail_pos_steps += 1
 
-        done = False
+        done = self.fail_pos_steps >= self.max_fail_pos_steps
         return ob, reward, done, {}
+
+    def _is_fail_pos(self, ob):
+        ee_pos = self._get_ee_pos(ob)
+        # ee_pos[1] is -0.59 (almost -pendulum length)
+        if ee_pos[1] < 0.8 * CartpoleEnv.PENDULUM_LENGTH:
+            return True
+        return False
 
     def reset_model(self):
         qpos = self.init_qpos + np.random.normal(0, 0.1, np.shape(self.init_qpos))
         qvel = self.init_qvel + np.random.normal(0, 0.1, np.shape(self.init_qvel))
         self.set_state(qpos, qvel)
+        self.fail_pos_steps = 0
         return self._get_obs()
 
     def _get_obs(self):
@@ -42,10 +54,9 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     @staticmethod
     def _get_ee_pos(x):
         x0, theta = x[0], x[1]
-        return np.array([
-            x0 - CartpoleEnv.PENDULUM_LENGTH * np.sin(theta),
-            -CartpoleEnv.PENDULUM_LENGTH * np.cos(theta)
-        ])
+        return np.array(
+            [x0 - CartpoleEnv.PENDULUM_LENGTH * np.sin(theta), -CartpoleEnv.PENDULUM_LENGTH * np.cos(theta)]
+        )
 
     def viewer_setup(self):
         v = self.viewer
