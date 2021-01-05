@@ -15,7 +15,7 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         utils.EzPickle.__init__(self)
         self.fail_pos_steps = 0
-        self.max_fail_pos_steps = 200
+        self.max_fail_pos_steps = 100
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, "%s/assets/cartpole.xml" % dir_path, 2)
 
@@ -37,7 +37,7 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _is_fail_pos(self, ob):
         ee_pos = self._get_ee_pos(ob)
         # ee_pos[1] is -0.59 (almost -pendulum length)
-        if ee_pos[1] < 0.8 * CartpoleEnv.PENDULUM_LENGTH:
+        if ee_pos[1] < 0.9 * CartpoleEnv.PENDULUM_LENGTH:
             return True
         return False
 
