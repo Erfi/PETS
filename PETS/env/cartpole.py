@@ -11,11 +11,13 @@ from gym.envs.mujoco import mujoco_env
 
 class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
+    MAX_STEPS = 500
+    MAX_FAIL_STEPS = 100
 
     def __init__(self):
         utils.EzPickle.__init__(self)
-        self.fail_pos_steps = 0
-        self.max_fail_pos_steps = 100
+        self.fail_steps = 0
+        self.steps = 0
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, "%s/assets/cartpole.xml" % dir_path, 2)
 
@@ -28,10 +30,12 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, CartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
         )
         reward -= 0.01 * np.sum(np.square(a))
-        if self._is_fail_pos(ob):
-            self.fail_pos_steps += 1
 
-        done = self.fail_pos_steps >= self.max_fail_pos_steps
+        # Update counters (bookkeeping)
+        if self._is_fail_pos(ob):
+            self.fail_steps += 1
+        self.steps += 1
+        done = self.fail_steps >= CartpoleEnv.MAX_FAIL_STEPS or self.steps > CartpoleEnv.MAX_STEPS
         return ob, reward, done, {}
 
     def _is_fail_pos(self, ob):
@@ -45,7 +49,8 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos = self.init_qpos + np.random.normal(0, 0.1, np.shape(self.init_qpos))
         qvel = self.init_qvel + np.random.normal(0, 0.1, np.shape(self.init_qvel))
         self.set_state(qpos, qvel)
-        self.fail_pos_steps = 0
+        self.fail_steps = 0
+        self.steps = 0
         return self._get_obs()
 
     def _get_obs(self):
