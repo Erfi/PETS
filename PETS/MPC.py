@@ -107,7 +107,6 @@ class MPC(Controller):
                         Warning: Can be very memory-intensive
         """
         super().__init__(params)
-        params.pprint()
         self.dO, self.dU = params.env.observation_space.shape[0], params.env.action_space.shape[0]
         self.ac_ub, self.ac_lb = params.env.action_space.high, params.env.action_space.low
         self.ac_ub = np.minimum(self.ac_ub, params.get("ac_ub", self.ac_ub))
@@ -131,10 +130,6 @@ class MPC(Controller):
         self.obs_cost_fn = get_required_argument(params.opt_cfg, "obs_cost_fn", "Must provide cost on observations.")
         self.ac_cost_fn = get_required_argument(params.opt_cfg, "ac_cost_fn", "Must provide cost on actions.")
 
-        self.save_all_models = params.log_cfg.get("save_all_models", False)
-        self.log_traj_preds = params.log_cfg.get("log_traj_preds", False)
-        self.log_particles = params.log_cfg.get("log_particles", False)
-
         # Perform argument checks
         assert self.opt_mode == "CEM"
         assert self.prop_mode == "TSinf", "only TSinf propagation mode is supported"
@@ -149,7 +144,7 @@ class MPC(Controller):
             lower_bound=np.tile(self.ac_lb, [self.plan_hor]),
             upper_bound=np.tile(self.ac_ub, [self.plan_hor]),
             cost_function=self._compile_cost,
-            **opt_cfg
+            **opt_cfg,
         )
 
         # Controller state variables
@@ -162,21 +157,11 @@ class MPC(Controller):
             0, self.targ_proc(np.zeros([1, self.dO]), np.zeros([1, self.dO])).shape[-1]
         )
 
+        print("\n----------- MPC Controller Settings -----------")
         print(
-            "Created an MPC controller, prop mode %s, %d particles. " % (self.prop_mode, self.npart)
-            + ("Ignoring variance." if self.ign_var else "")
+            f"prop_mode: {self.prop_mode}\nCEM_npart: {self.npart}\nplanning hor:{self.plan_hor}\npopulation:{params.opt_cfg.cfg.get('popsize', None)}"
         )
-
-        if self.save_all_models:
-            print("Controller will save all models. (Note: This may be memory-intensive.")
-        if self.log_particles:
-            print("Controller is logging particle predictions (Note: This may be memory-intensive).")
-            self.pred_particles = []
-        elif self.log_traj_preds:
-            print("Controller is logging trajectory prediction statistics (mean+var).")
-            self.pred_means, self.pred_vars = [], []
-        else:
-            print("Trajectory prediction logging is disabled.")
+        print("-----------------------------------------------\n")
 
         # Set up pytorch model
         self.model = get_required_argument(
