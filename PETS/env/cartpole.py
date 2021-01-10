@@ -11,7 +11,7 @@ from gym.envs.mujoco import mujoco_env
 
 class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
-    MAX_STEPS = 500
+    MAX_STEPS = 300
     MAX_FAIL_STEPS = 100
 
     def __init__(self):
@@ -35,7 +35,7 @@ class CartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         if self._is_fail_pos(ob):
             self.fail_steps += 1
         self.steps += 1
-        done = self.fail_steps >= CartpoleEnv.MAX_FAIL_STEPS or self.steps > CartpoleEnv.MAX_STEPS
+        done = self.steps > CartpoleEnv.MAX_STEPS  # or self.fail_steps >= CartpoleEnv.MAX_FAIL_STEPS
         return ob, reward, done, {}
 
     def _is_fail_pos(self, ob):
