@@ -181,62 +181,38 @@ class MPC(Controller):
         """
 
         #  Construct new training points and add to training set
-        new_train_in = torch.cat([self.obs_preproc(obs), actions], dim=-1)
-        new_train_targs = self.targ_proc(obs, next_obs)
-        self.train_in = np.concatenate([self.train_in, new_train_in], axis=0)
-        self.train_targs = np.concatenate([self.train_targs, new_train_targs], axis=0)
-
+        new_train_in = torch.cat([self.obs_preproc(obs), actions], dim=-1).numpy()
+        new_train_targs = self.targ_proc(obs, next_obs).numpy()
         # Train the model
         self.has_been_trained = True
 
         # Train the pytorch model
-        self.model.fit_input_stats(self.train_in)
-
-        idxs = np.random.randint(self.train_in.shape[0], size=[self.model.num_nets, self.train_in.shape[0]])
+        self.model.fit_input_stats(new_train_in)
 
         epochs = self.model_train_cfg["epochs"]
 
-        # TODO: double-check the batch_size for all env is the same
-        batch_size = 32
+        for _ in range(epochs):
 
-        epoch_range = trange(epochs, unit="epoch(s)", desc="Network training")
-        num_batch = int(np.ceil(idxs.shape[-1] / batch_size))
+            loss = 0.01 * (self.model.max_logvar.sum() - self.model.min_logvar.sum())
+            loss += self.model.compute_decays()
 
-        for _ in epoch_range:
+            # TODO: move all training data to GPU before hand
+            train_in = torch.from_numpy(new_train_in).to(TORCH_DEVICE).float()
+            train_targ = torch.from_numpy(new_train_targs).to(TORCH_DEVICE).float()
 
-            for batch_num in range(num_batch):
-                batch_idxs = idxs[:, batch_num * batch_size : (batch_num + 1) * batch_size]
+            mean, logvar = self.model(train_in, ret_logvar=True)
+            inv_var = torch.exp(-logvar)
 
-                loss = 0.01 * (self.model.max_logvar.sum() - self.model.min_logvar.sum())
-                loss += self.model.compute_decays()
+            train_losses = ((mean - train_targ) ** 2) * inv_var + logvar
+            train_losses = train_losses.mean(-1).mean(-1).sum()
+            # Only taking mean over the last 2 dimensions
+            # The first dimension corresponds to each model in the ensemble
 
-                # TODO: move all training data to GPU before hand
-                train_in = torch.from_numpy(self.train_in[batch_idxs]).to(TORCH_DEVICE).float()
-                train_targ = torch.from_numpy(self.train_targs[batch_idxs]).to(TORCH_DEVICE).float()
+            loss += train_losses
 
-                mean, logvar = self.model(train_in, ret_logvar=True)
-                inv_var = torch.exp(-logvar)
-
-                train_losses = ((mean - train_targ) ** 2) * inv_var + logvar
-                train_losses = train_losses.mean(-1).mean(-1).sum()
-                # Only taking mean over the last 2 dimensions
-                # The first dimension corresponds to each model in the ensemble
-
-                loss += train_losses
-
-                self.model.optim.zero_grad()
-                loss.backward()
-                self.model.optim.step()
-
-            idxs = shuffle_rows(idxs)
-
-            val_in = torch.from_numpy(self.train_in[idxs[:5000]]).to(TORCH_DEVICE).float()
-            val_targ = torch.from_numpy(self.train_targs[idxs[:5000]]).to(TORCH_DEVICE).float()
-
-            mean, _ = self.model(val_in)
-            mse_losses = ((mean - val_targ) ** 2).mean(-1).mean(-1)
-
-            epoch_range.set_postfix({"Training loss(es)": mse_losses.detach().cpu().numpy()})
+            self.model.optim.zero_grad()
+            loss.backward()
+            self.model.optim.step()
 
     def reset(self):
         """Resets this controller (clears previous solution, calls all update functions).

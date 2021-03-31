@@ -9,7 +9,7 @@ TORCH_DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.devi
 
 
 class DynModel(nn.Module):
-    def __init__(self, ensemble_size, in_features, out_features):
+    def __init__(self, ensemble_size, h_units, in_features, out_features):
         super().__init__()
 
         self.num_nets = ensemble_size
@@ -17,13 +17,12 @@ class DynModel(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
 
-        self.lin0_w, self.lin0_b = get_affine_params(ensemble_size, in_features, 500)
+        self.lin0_w, self.lin0_b = get_affine_params(ensemble_size, in_features, h_units)
 
-        self.lin1_w, self.lin1_b = get_affine_params(ensemble_size, 500, 500)
+        self.lin1_w, self.lin1_b = get_affine_params(ensemble_size, h_units, h_units)
+        self.lin2_w, self.lin2_b = get_affine_params(ensemble_size, h_units, h_units)
 
-        self.lin2_w, self.lin2_b = get_affine_params(ensemble_size, 500, 500)
-
-        self.lin3_w, self.lin3_b = get_affine_params(ensemble_size, 500, out_features)
+        self.lin3_w, self.lin3_b = get_affine_params(ensemble_size, h_units, out_features)
 
         self.inputs_mu = nn.Parameter(torch.zeros(1, in_features), requires_grad=False)
         self.inputs_sigma = nn.Parameter(torch.zeros(1, in_features), requires_grad=False)
@@ -84,12 +83,13 @@ def nn_constructor(model_init_cfg):
     output_dim = get_required_argument(
         model_init_cfg, "output_dim", "Must provide output dimension of the dynamics model"
     )
+    h_units = get_required_argument(model_init_cfg, "h_units", "Must provide hidden layer units")
 
     load_model = model_init_cfg.get("load_model", False)
 
     assert load_model is False, "Has yet to support loading model"
 
-    model = DynModel(ensemble_size, input_dim, output_dim * 2).to(TORCH_DEVICE)
+    model = DynModel(ensemble_size, h_units, input_dim, output_dim * 2).to(TORCH_DEVICE)
     # * 2 because we output both the mean and the variance
 
     model.optim = torch.optim.Adam(model.parameters(), lr=0.001)
