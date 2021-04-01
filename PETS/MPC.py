@@ -214,6 +214,26 @@ class MPC(Controller):
             loss.backward()
             self.model.optim.step()
 
+    def validate(self, obs, next_obs, actions):
+        """
+        Validates the model
+
+        :returns validation loss of the model on the given data
+        """
+        new_X = torch.cat([self.obs_preproc(obs), actions], dim=-1).numpy()
+        new_Y = self.targ_proc(obs, next_obs).numpy()
+        self.model.fit_input_stats(new_X)
+
+        X = torch.from_numpy(new_X).to(TORCH_DEVICE).float()
+        Y = torch.from_numpy(new_Y).to(TORCH_DEVICE).float()
+
+        mean, logvar = self.model(X, ret_logvar=True)
+        inv_var = torch.exp(-logvar)
+
+        valid_losses = ((mean - Y) ** 2) * inv_var + logvar
+        valid_losses = valid_losses.mean(-1).mean(-1).sum()
+        return valid_losses.detach().clone()
+
     def reset(self):
         """Resets this controller (clears previous solution, calls all update functions).
 
