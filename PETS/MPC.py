@@ -232,7 +232,7 @@ class MPC(Controller):
 
         valid_losses = ((mean - Y) ** 2) * inv_var + logvar
         valid_losses = valid_losses.mean(-1).mean(-1).sum()
-        return valid_losses.detach().clone()
+        return valid_losses.detach().clone().item()
 
     def reset(self):
         """Resets this controller (clears previous solution, calls all update functions).
