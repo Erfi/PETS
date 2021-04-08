@@ -195,7 +195,6 @@ class MPC(Controller):
 
             loss = 0.01 * (self.model.max_logvar.sum() - self.model.min_logvar.sum())
             loss += self.model.compute_decays()
-
             # TODO: move all training data to GPU before hand
             train_in = torch.from_numpy(new_train_in).to(TORCH_DEVICE).float()
             train_targ = torch.from_numpy(new_train_targs).to(TORCH_DEVICE).float()
@@ -227,10 +226,9 @@ class MPC(Controller):
         X = torch.from_numpy(new_X).to(TORCH_DEVICE).float()
         Y = torch.from_numpy(new_Y).to(TORCH_DEVICE).float()
 
-        mean, logvar = self.model(X, ret_logvar=True)
-        inv_var = torch.exp(-logvar)
+        mean, _ = self.model(X, ret_logvar=True)
 
-        valid_losses = ((mean - Y) ** 2) * inv_var + logvar
+        valid_losses = (mean - Y) ** 2
         valid_losses = valid_losses.mean(-1).mean(-1).sum()
         return valid_losses.detach().clone().item()
 
